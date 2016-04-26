@@ -56,6 +56,7 @@ class WMS (object):
         response = None
         while response is None:
             try:
+		sys.stdout.write ("request:"+self.url())
                 response = self.client.open(urlrequest)
                 data = response.read()
                 # check to make sure that we have an image...
@@ -87,6 +88,7 @@ def seed (svc, layer, levels = (0, 5), bbox = None, padding = 0, force = False, 
     total = 0
     
     for z in range(*levels):
+	sys.stdout.write ("z:"+str(z))
         bottomleft = layer.getClosestCell(z, bbox[0:2])
         topright   = layer.getClosestCell(z, bbox[2:4])
         # Why Are we printing to sys.stderr??? It's not an error.
@@ -95,6 +97,7 @@ def seed (svc, layer, levels = (0, 5), bbox = None, padding = 0, force = False, 
         print "###### %s, %s" % (bottomleft, topright)
         zcount = 0 
         metaSize = layer.getMetaSize(z)
+	zTileDim = 2**z
         ztiles = int(math.ceil(float(topright[1] - bottomleft[1]) / metaSize[0]) * math.ceil(float(topright[0] - bottomleft[0]) / metaSize[1]))
         if reverse:
             startX = topright[0] + metaSize[0] + (1 * padding)
@@ -110,8 +113,14 @@ def seed (svc, layer, levels = (0, 5), bbox = None, padding = 0, force = False, 
             startY = bottomleft[1] - (1 * padding)
             endY = topright[1] + metaSize[1] + (1 * padding)
             stepY = metaSize[1]
-        for y in range(startY, endY, stepY):
-            for x in range(startX, endX, stepX):
+
+	if  endX >= zTileDim:
+	    endX = endX - stepX
+	if  endY >= zTileDim:
+	    endY = endY - stepX
+
+        for y in range(int(startY), int(endY), stepY):
+            for x in range(int(startX), int(endX), stepX):
                 tileStart = time.time()
                 tile = Tile(layer,x,y,z)
                 bounds = tile.bounds()
@@ -129,7 +138,7 @@ def main ():
         raise Exception("TileCache seeding requires optparse/OptionParser. Your Python may be too old.\nSend email to the mailing list \n(http://openlayers.org/mailman/listinfo/tilecache) about this problem for help.")
     usage = "usage: %prog <layer> [<zoom start> <zoom stop>]"
     
-    parser = OptionParser(usage=usage, version="%prog $Id$")
+    parser = OptionParser(usage=usage, version="%prog $Id: Client.py 406 2010-10-15 11:00:18Z crschmidt $")
     
     parser.add_option("-f","--force", action="store_true", dest="force", default = False,
                       help="force recreation of tiles even if they are already in cache")
@@ -178,7 +187,7 @@ def main ():
             lat, lon, delta = map(float, line.split(","))
             bbox = (lon - delta, lat - delta, lon + delta, lat + delta)
             print "===> %s <===" % (bbox,)
-            seed(svc, layer, (5, 17), bbox , force = options.force )
+            seed(svc, layer, (5, 11), bbox , force = options.force )
 
 if __name__ == '__main__':
     main()
